@@ -1,0 +1,1546 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>每日工作排程</title>
+<style>
+:root {
+  --blue:       #1565c0;
+  --blue-d:     #0d47a1;
+  --blue-l:     #e3f2fd;
+  --blue-mid:   #bbdefb;
+  --green:      #2e7d32;
+  --orange:     #e65100;
+  --amber:      #f57f17;
+  --red:        #c62828;
+  --gray:       #607d8b;
+  --gray-l:     #eceff1;
+  --border:     #cfd8dc;
+  --white:      #fff;
+  --bg:         #f0f4f8;
+  --text:       #1a2635;
+  --text-2:     #546e7a;
+  --radius:     10px;
+  --safe-b:     env(safe-area-inset-bottom, 0px);
+}
+*,*::before,*::after { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+html,body { height:100%; margin:0; background:var(--bg); color:var(--text);
+  font-family:"Noto Sans TC","Segoe UI",system-ui,sans-serif; font-size:15px; }
+
+/* ── TOPBAR ── */
+.topbar {
+  position: sticky; top:0; z-index:200;
+  background: var(--blue-d);
+  padding: 12px 16px 10px;
+  display: flex; align-items: center; justify-content: space-between;
+  box-shadow: 0 2px 8px rgba(0,0,0,.25);
+}
+.topbar-title { color:#fff; font-size:15px; font-weight:700; line-height:1.2; }
+.topbar-sub   { color:rgba(255,255,255,.65); font-size:11px; margin-top:1px; }
+.topbar-btn {
+  background: rgba(255,255,255,.15); border:none; color:#fff;
+  border-radius:8px; padding:7px 13px; font-size:13px; font-weight:600;
+  cursor:pointer; display:flex; align-items:center; gap:5px;
+}
+.topbar-btn:active { background:rgba(255,255,255,.28); }
+
+/* ── BOTTOM BAR ── */
+.bottombar {
+  position: fixed; bottom:0; left:0; right:0; z-index:200;
+  background: var(--white);
+  border-top: 1px solid var(--border);
+  padding: 10px 16px calc(10px + var(--safe-b));
+  display: flex; gap:10px;
+  box-shadow: 0 -2px 10px rgba(0,0,0,.08);
+}
+.bb-btn {
+  flex:1; border:none; border-radius:10px; padding:13px 8px;
+  font-size:14px; font-weight:700; cursor:pointer;
+  display:flex; align-items:center; justify-content:center; gap:6px;
+}
+.bb-btn:active { filter:brightness(.9); }
+.bb-save  { background:var(--gray-l); color:var(--blue-d); }
+.bb-pdf   { background:var(--blue); color:#fff; flex:1.6; }
+
+/* ── SCROLL AREA ── */
+.scroll-area {
+  padding: 14px 14px calc(90px + var(--safe-b));
+  display: flex; flex-direction:column; gap:12px;
+}
+
+/* ── CARDS ── */
+.card {
+  background:var(--white); border-radius:var(--radius);
+  border:1px solid var(--border);
+  box-shadow:0 1px 4px rgba(0,0,0,.06);
+  overflow:hidden;
+}
+.card-hd {
+  background:var(--blue-l); border-bottom:1px solid var(--blue-mid);
+  padding:9px 14px; font-size:12px; font-weight:700;
+  color:var(--blue-d); letter-spacing:.03em;
+  display:flex; align-items:center; gap:6px;
+}
+.card-body { padding:12px 14px; display:flex; flex-direction:column; gap:10px; }
+
+/* ── FIELDS ── */
+.field { display:flex; flex-direction:column; gap:4px; }
+.field label { font-size:11px; font-weight:700; color:var(--text-2); letter-spacing:.04em; }
+.field input, .field select {
+  padding:11px 12px; border-radius:8px; border:1.5px solid var(--border);
+  font-size:15px; font-family:inherit; background:#fafbfc; color:var(--text);
+  appearance:none; -webkit-appearance:none;
+}
+.field input:focus, .field select:focus {
+  outline:none; border-color:var(--blue); background:var(--white);
+  box-shadow:0 0 0 3px var(--blue-l);
+}
+
+/* ── ROW CARDS ── */
+.row-card {
+  background:var(--white); border-radius:var(--radius);
+  border:1.5px solid var(--border);
+  box-shadow:0 1px 5px rgba(0,0,0,.06);
+  overflow:hidden;
+  transition: box-shadow .15s;
+}
+.row-card:active { box-shadow:0 2px 12px rgba(21,101,192,.15); }
+
+.row-header {
+  display:flex; align-items:center; gap:10px;
+  padding:10px 12px; cursor:pointer;
+  user-select:none;
+}
+.row-num {
+  width:32px; height:32px; border-radius:50%;
+  display:flex; align-items:center; justify-content:center;
+  font-size:15px; font-weight:700; flex-shrink:0;
+  background:var(--blue-l); color:var(--blue);
+}
+.row-num.lunch-num { background:#fff9c4; color:var(--amber); }
+
+.row-summary { flex:1; min-width:0; }
+.row-time { font-size:13px; font-weight:700; color:var(--blue); }
+.row-status-label {
+  display:inline-block; margin-top:3px;
+  font-size:11px; font-weight:700; color:#fff;
+  padding:2px 9px; border-radius:20px;
+}
+.row-preview {
+  font-size:12px; color:var(--text-2); margin-top:3px;
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+}
+.row-chevron { color:var(--gray); font-size:13px; flex-shrink:0; transition:transform .2s; }
+.row-chevron.open { transform:rotate(90deg); }
+
+.row-body {
+  display:none; border-top:1px solid var(--border);
+  padding:12px; flex-direction:column; gap:10px;
+}
+.row-body.open { display:flex; }
+
+/* time row */
+.time-row { display:flex; align-items:center; gap:8px; }
+.time-row input[type=time] {
+  flex:1; padding:10px 10px; border-radius:8px;
+  border:1.5px solid var(--border); font-size:15px;
+  font-family:inherit; background:#fafbfc;
+}
+.time-row input[type=time]:focus {
+  outline:none; border-color:var(--blue); box-shadow:0 0 0 3px var(--blue-l);
+}
+.time-sep { font-size:15px; color:var(--text-2); font-weight:600; }
+
+.status-select {
+  width:100%; padding:11px 12px; border-radius:8px;
+  border:1.5px solid var(--border); font-size:14px;
+  font-family:inherit; background:#fafbfc;
+  appearance:none; -webkit-appearance:none;
+}
+.status-select:focus { outline:none; border-color:var(--blue); box-shadow:0 0 0 3px var(--blue-l); }
+
+/* lang text areas */
+.lang-group { display:flex; flex-direction:column; gap:6px; }
+.lang-item { display:flex; gap:8px; align-items:flex-start; }
+.lang-pill {
+  width:26px; height:22px; border-radius:4px; flex-shrink:0; margin-top:3px;
+  display:flex; align-items:center; justify-content:center;
+  font-size:9px; font-weight:700; color:#fff;
+}
+.p-zh { background:var(--blue); }
+.p-vi { background:var(--red); }
+.p-th { background:#ef6c00; }
+
+.lang-item textarea {
+  flex:1; padding:9px 11px; border-radius:8px;
+  border:1.5px solid var(--border); font-size:13px;
+  font-family:inherit; line-height:1.45; resize:none;
+  background:#fafbfc; min-height:52px;
+}
+.lang-item textarea:focus {
+  outline:none; border-color:var(--blue); background:var(--white);
+  box-shadow:0 0 0 3px var(--blue-l);
+}
+
+/* row action strip */
+.row-actions {
+  display:flex; gap:8px; padding-top:4px;
+  border-top:1px solid var(--gray-l);
+}
+.ra-btn {
+  flex:1; border:none; border-radius:8px; padding:10px;
+  font-size:13px; font-weight:600; cursor:pointer;
+  display:flex; align-items:center; justify-content:center; gap:5px;
+}
+.ra-btn:active { filter:brightness(.9); }
+.ra-up   { background:var(--gray-l); color:var(--text-2); }
+.ra-down { background:var(--gray-l); color:var(--text-2); }
+.ra-del  { background:#fce4e4; color:var(--red); }
+
+/* add bar */
+.add-bar {
+  background:var(--white); border-radius:var(--radius);
+  border:1px solid var(--border);
+  padding:12px 14px;
+}
+.add-bar-title { font-size:12px; font-weight:700; color:var(--text-2); margin-bottom:8px; }
+.add-btns { display:flex; gap:8px; flex-wrap:wrap; }
+.add-btn {
+  background:var(--gray-l); color:var(--text); border:none;
+  border-radius:8px; padding:9px 14px; font-size:13px; font-weight:600;
+  cursor:pointer; display:flex; align-items:center; gap:4px;
+}
+.add-btn:active { background:var(--blue-l); color:var(--blue); }
+
+/* zone colors */
+.z-A { background:#2e7d32; }
+.z-B { background:#1565c0; }
+.z-C { background:#e65100; }
+.z-L { background:#f57f17; }
+.z-X { background:#607d8b; }
+
+/* toast */
+.toast {
+  position:fixed; bottom:calc(80px + var(--safe-b)); left:50%;
+  transform:translateX(-50%) translateY(10px);
+  background:#1b5e20; color:#fff; padding:11px 20px;
+  border-radius:24px; font-size:13px; font-weight:600;
+  box-shadow:0 4px 16px rgba(0,0,0,.25); white-space:nowrap;
+  opacity:0; pointer-events:none; transition:opacity .25s, transform .25s;
+  z-index:999;
+}
+.toast.show { opacity:1; transform:translateX(-50%) translateY(0); }
+
+/* modal */
+.modal-bg {
+  position:fixed; inset:0; background:rgba(0,0,0,.5); z-index:500;
+  display:none; align-items:flex-end;
+}
+.modal-bg.open { display:flex; }
+.modal {
+  background:var(--white); border-radius:18px 18px 0 0;
+  width:100%; max-height:85vh; overflow-y:auto;
+  padding:20px 20px calc(20px + var(--safe-b));
+  transform:translateY(100%);
+  transition:transform .3s cubic-bezier(.4,0,.2,1);
+}
+.modal-bg.open .modal { transform:translateY(0); }
+.modal-title { font-size:16px; font-weight:700; margin-bottom:16px; color:var(--blue-d); }
+.modal-btns { display:flex; flex-direction:column; gap:10px; }
+.modal-action {
+  width:100%; border:none; border-radius:10px; padding:14px;
+  font-size:14px; font-weight:700; cursor:pointer;
+  display:flex; align-items:center; gap:10px;
+}
+.modal-action:active { filter:brightness(.9); }
+.modal-cancel { background:var(--gray-l); color:var(--text-2); margin-top:4px; }
+
+/* ── TRANSLATE ── */
+.translate-btn {
+  width:100%; border:none; border-radius:8px; padding:10px 12px;
+  font-size:13px; font-weight:700; cursor:pointer;
+  background: linear-gradient(135deg, #7b1fa2, #1565c0);
+  color:#fff; display:flex; align-items:center; justify-content:center; gap:6px;
+  transition: opacity .15s;
+}
+.translate-btn:active { opacity:.8; }
+.translate-btn:disabled { background:#b0bec5; cursor:not-allowed; }
+.translate-btn.loading { animation: pulse 1.2s ease-in-out infinite; }
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.6} }
+
+.translated-badge {
+  display:inline-flex; align-items:center; gap:4px;
+  font-size:10px; font-weight:700; color:#2e7d32;
+  background:#e8f5e9; border-radius:10px; padding:2px 8px;
+  margin-left:6px;
+}
+
+/* ── API KEY BANNER ── */
+.key-banner {
+  background: linear-gradient(135deg, #4a148c, #1565c0);
+  color:#fff; border-radius:var(--radius);
+  padding:12px 14px; display:flex; align-items:center; gap:10px;
+}
+.key-banner-icon { font-size:22px; flex-shrink:0; }
+.key-banner-text { flex:1; }
+.key-banner-title { font-size:13px; font-weight:700; }
+.key-banner-sub   { font-size:11px; opacity:.8; margin-top:2px; }
+.key-banner-btn {
+  background:rgba(255,255,255,.2); border:none; color:#fff;
+  border-radius:8px; padding:8px 14px; font-size:13px; font-weight:700;
+  cursor:pointer; white-space:nowrap; flex-shrink:0;
+}
+.key-banner-btn:active { background:rgba(255,255,255,.35); }
+.key-set-banner {
+  background:#e8f5e9; border:1px solid #a5d6a7;
+  border-radius:var(--radius); padding:10px 14px;
+  display:flex; align-items:center; gap:10px;
+}
+.key-set-banner span { flex:1; font-size:13px; color:#2e7d32; font-weight:600; }
+.key-set-change {
+  background:none; border:1px solid #a5d6a7; color:#2e7d32;
+  border-radius:8px; padding:6px 12px; font-size:12px; font-weight:700; cursor:pointer;
+}
+
+/* ── KEY MODAL ── */
+.key-modal-bg {
+  position:fixed; inset:0; background:rgba(0,0,0,.55); z-index:600;
+  display:none; align-items:flex-end;
+}
+.key-modal-bg.open { display:flex; }
+.key-modal {
+  background:var(--white); border-radius:18px 18px 0 0;
+  width:100%; padding:24px 20px calc(24px + var(--safe-b));
+  transform:translateY(100%);
+  transition:transform .3s cubic-bezier(.4,0,.2,1);
+}
+.key-modal-bg.open .key-modal { transform:translateY(0); }
+.key-modal-title { font-size:16px; font-weight:700; color:var(--blue-d); margin-bottom:6px; }
+.key-modal-hint  { font-size:12px; color:var(--text-2); line-height:1.5; margin-bottom:16px; }
+.key-modal-hint a { color:var(--blue); }
+.key-input-wrap { position:relative; margin-bottom:14px; }
+.key-input-wrap input {
+  width:100%; padding:12px 44px 12px 12px;
+  border-radius:10px; border:1.5px solid var(--border);
+  font-size:14px; font-family:monospace; background:#fafbfc;
+}
+.key-input-wrap input:focus {
+  outline:none; border-color:var(--blue); box-shadow:0 0 0 3px var(--blue-l);
+}
+.key-eye {
+  position:absolute; right:12px; top:50%; transform:translateY(-50%);
+  background:none; border:none; font-size:18px; cursor:pointer; color:var(--gray);
+}
+.key-modal-save {
+  width:100%; border:none; border-radius:10px; padding:14px;
+  background:var(--blue); color:#fff; font-size:15px; font-weight:700;
+  cursor:pointer; margin-bottom:10px;
+}
+.key-modal-save:active { filter:brightness(.9); }
+.key-modal-cancel {
+  width:100%; border:none; border-radius:10px; padding:12px;
+  background:var(--gray-l); color:var(--text-2); font-size:14px; font-weight:600;
+  cursor:pointer;
+}
+.key-modal-del {
+  width:100%; border:none; border-radius:10px; padding:12px; margin-top:8px;
+  background:#fce4e4; color:var(--red); font-size:13px; font-weight:600;
+  cursor:pointer; display:none;
+}
+
+/* ── SAVED CUSTOM MODAL ── */
+.sc-modal-bg {
+  position:fixed; inset:0; background:rgba(0,0,0,.5); z-index:600;
+  display:none; align-items:flex-end;
+}
+.sc-modal-bg.open { display:flex; }
+.sc-modal {
+  background:var(--white); border-radius:18px 18px 0 0;
+  width:100%; max-height:80vh; display:flex; flex-direction:column;
+  transform:translateY(100%);
+  transition:transform .3s cubic-bezier(.4,0,.2,1);
+}
+.sc-modal-bg.open .sc-modal { transform:translateY(0); }
+.sc-modal-hd {
+  padding:18px 18px 12px; border-bottom:1px solid var(--border);
+  display:flex; align-items:center; justify-content:space-between; flex-shrink:0;
+}
+.sc-modal-title { font-size:16px; font-weight:700; color:var(--blue-d); }
+.sc-modal-close {
+  width:32px; height:32px; border-radius:50%; background:var(--gray-l);
+  border:none; font-size:18px; cursor:pointer; display:flex; align-items:center; justify-content:center;
+}
+.sc-modal-list {
+  flex:1; overflow-y:auto; padding:10px 14px calc(10px + var(--safe-b));
+  display:flex; flex-direction:column; gap:8px;
+}
+.sc-empty {
+  text-align:center; color:var(--text-2); font-size:13px;
+  padding:32px 0;
+}
+.sc-item {
+  display:flex; align-items:center; gap:10px;
+  background:#fafbfc; border:1px solid var(--border);
+  border-radius:10px; padding:10px 12px;
+}
+.sc-item-dot {
+  width:12px; height:12px; border-radius:50%; flex-shrink:0;
+}
+.sc-item-info { flex:1; min-width:0; }
+.sc-item-label { font-size:14px; font-weight:700; color:var(--text); }
+.sc-item-sub   { font-size:11px; color:var(--text-2); margin-top:2px;
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.sc-item-add {
+  background:var(--blue); color:#fff; border:none; border-radius:8px;
+  padding:7px 12px; font-size:12px; font-weight:700; cursor:pointer; flex-shrink:0;
+}
+.sc-item-add:active { filter:brightness(.9); }
+.sc-item-del {
+  background:#fce4e4; color:var(--red); border:none; border-radius:8px;
+  padding:7px 10px; font-size:12px; cursor:pointer; flex-shrink:0;
+}
+.sc-item-del:active { filter:brightness(.9); }
+</style>
+</head>
+<body>
+
+<!-- TOP BAR -->
+<div class="topbar">
+  <div>
+    <div class="topbar-title">📋 每日工作排程</div>
+    <div class="topbar-sub" id="topbar-date-display">載入中…</div>
+  </div>
+  <button class="topbar-btn" onclick="showMenu()">⋯ 選項</button>
+</div>
+
+<!-- SCROLL AREA -->
+<div class="scroll-area" id="scroll-area">
+
+  <!-- API KEY BANNER -->
+  <div id="key-banner-missing" class="key-banner">
+    <div class="key-banner-icon">🔑</div>
+    <div class="key-banner-text">
+      <div class="key-banner-title">需要設定 API Key</div>
+      <div class="key-banner-sub">才能使用自動翻譯功能</div>
+    </div>
+    <button class="key-banner-btn" onclick="openKeyModal()">設定</button>
+  </div>
+  <div id="key-banner-set" class="key-set-banner" style="display:none">
+    <span>🔑 API Key 已設定，翻譯功能啟用</span>
+    <button class="key-set-change" onclick="openKeyModal()">更改</button>
+  </div>
+
+  <!-- META CARD -->
+  <div class="card">
+    <div class="card-hd">📅 基本資訊</div>
+    <div class="card-body">
+      <div class="field">
+        <label>日期 DATE / วันที่</label>
+        <input type="date" id="meta-date" value="2026-06-23" oninput="updateDateDisplay()">
+      </div>
+      <div class="field">
+        <label>工作時間 HOURS</label>
+        <input type="text" id="meta-hours" value="08:00 ~ 17:00">
+      </div>
+      <div class="field">
+        <label>工作人員 STAFF（中文，用 | 分隔）</label>
+        <div style="display:flex;gap:8px;align-items:center;">
+          <input type="text" id="meta-staff" style="flex:1;"
+            value="阿智 (Trí / ธิ) | 阿榮 (Vinh / วิน) | 阿望 (Vọng / ว่อง)"
+            placeholder="例：阿智 | 阿榮 | 阿望">
+          <button id="staff-tbtn" onclick="translateStaff()"
+            style="flex-shrink:0;border:none;border-radius:8px;padding:10px 12px;
+            background:linear-gradient(135deg,#7b1fa2,#1565c0);color:#fff;
+            font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;">
+            ✨ 翻譯
+          </button>
+        </div>
+        <div style="margin-top:6px;display:flex;gap:6px;align-items:center;">
+          <span style="display:inline-flex;align-items:center;justify-content:center;width:26px;height:20px;border-radius:3px;background:#c62828;font-size:9px;font-weight:700;color:#fff;flex-shrink:0;">VN</span>
+          <input type="text" id="meta-staff-vi" style="flex:1;font-size:13px;font-style:italic;"
+            placeholder="Nhân viên tiếng Việt…">
+        </div>
+        <div style="margin-top:6px;display:flex;gap:6px;align-items:center;">
+          <span style="display:inline-flex;align-items:center;justify-content:center;width:26px;height:20px;border-radius:3px;background:#ef6c00;font-size:9px;font-weight:700;color:#fff;flex-shrink:0;">TH</span>
+          <input type="text" id="meta-staff-th" style="flex:1;font-size:13px;"
+            placeholder="พนักงานภาษาไทย…">
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ROWS will be injected here -->
+  <div id="rows-container"></div>
+
+  <!-- ADD BAR -->
+  <div class="add-bar">
+    <div class="add-bar-title">＋ 新增工作列</div>
+    <div class="add-btns">
+      <button class="add-btn" onclick="addRow('A')">🟢 A區作業</button>
+      <button class="add-btn" onclick="addRow('B')">🔵 B區作業</button>
+      <button class="add-btn" onclick="addRow('C')">🟠 C區包裝</button>
+      <button class="add-btn" onclick="addRow('X')">⚙️ 其他</button>
+      <button class="add-btn" id="saved-custom-btn" onclick="openSavedCustomModal()" style="background:var(--blue-l);color:var(--blue-d);">⭐ 常用自訂</button>
+    </div>
+  </div>
+
+</div>
+
+<!-- BOTTOM BAR -->
+<div class="bottombar">
+  <button class="bb-btn bb-save" onclick="saveTemplate()">💾 儲存模板</button>
+  <button class="bb-btn bb-pdf" onclick="generatePDF()">⬇ 產生 PDF</button>
+</div>
+
+<!-- OPTIONS MODAL -->
+<div class="modal-bg" id="modal-bg" onclick="closeMenuIfBg(event)">
+  <div class="modal">
+    <div class="modal-title">選項</div>
+    <div class="modal-btns">
+      <button class="modal-action" style="background:var(--blue-l);color:var(--blue-d);" onclick="saveTemplate();closeMenu()">
+        💾 儲存模板（瀏覽器記憶）
+      </button>
+      <button class="modal-action" style="background:#fff3e0;color:#e65100;" onclick="confirmReset()">
+        ↺ 重置為預設模板
+      </button>
+      <button class="modal-action modal-cancel" onclick="closeMenu()">取消</button>
+    </div>
+  </div>
+</div>
+
+<!-- API KEY MODAL -->
+<div class="key-modal-bg" id="key-modal-bg" onclick="closeKeyIfBg(event)">
+  <div class="key-modal">
+    <div class="key-modal-title">🔑 設定 Anthropic API Key</div>
+    <div class="key-modal-hint">
+      Key 只存在你手機/電腦的瀏覽器，不會上傳到任何伺服器。<br>
+      取得 Key：<a href="https://console.anthropic.com/settings/keys" target="_blank">console.anthropic.com</a>
+      → API Keys → Create Key
+    </div>
+    <div class="key-input-wrap">
+      <input type="password" id="key-input" placeholder="sk-ant-api03-…" autocomplete="off" autocorrect="off" spellcheck="false">
+      <button class="key-eye" onclick="toggleKeyVisible()" id="key-eye-btn">👁</button>
+    </div>
+    <button class="key-modal-save" onclick="saveApiKey()">儲存 Key</button>
+    <button class="key-modal-cancel" onclick="closeKeyModal()">取消</button>
+    <button class="key-modal-del" id="key-del-btn" onclick="deleteApiKey()">🗑 刪除已儲存的 Key</button>
+  </div>
+</div>
+
+<!-- SAVED CUSTOM MODAL -->
+<div class="sc-modal-bg" id="sc-modal-bg" onclick="closeSCIfBg(event)">
+  <div class="sc-modal">
+    <div class="sc-modal-hd">
+      <div class="sc-modal-title">⭐ 常用自訂狀態</div>
+      <button class="sc-modal-close" onclick="closeSavedCustomModal()">✕</button>
+    </div>
+    <div class="sc-modal-list" id="sc-modal-list"></div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ────────────────────────────────────────────────
+// DATA
+// ────────────────────────────────────────────────
+const STATUS_OPTIONS = {
+  A_prep:   { label:'A區作業 (整料區)',      zone:'A', vi:'Khu A (Khu sắp xếp)',                th:'โซน A (จัดเตรียมวัสดุ)' },
+  B_run:    { label:'B區作業 (噴砂機)',       zone:'B', vi:'Khu B (Máy phun cát)',                th:'โซน B (เครื่องพ่นทราย)' },
+  B_pause:  { label:'B區作業 (停機間歇)',     zone:'B', vi:'Khu B (Tạm dừng máy)',                th:'โซน B (หยุดพักเครื่อง)' },
+  B_start:  { label:'B區作業 (啟用)',         zone:'B', vi:'Khu B (Khởi động máy)',               th:'โซน B (เปิดเครื่อง)' },
+  B_stop:   { label:'B區作業 (停機)',         zone:'B', vi:'Khu B (Tắt máy)',                     th:'โซน B (ปิดเครื่อง)' },
+  BC_trans: { label:'B區停機/C區包裝啟用',   zone:'B', vi:'Khu B tắt / Khu C đóng gói bắt đầu', th:'โซน B ปิด / โซน C เริ่มแพ็คของ' },
+  C_pack:   { label:'C區作業 (包裝)',         zone:'C', vi:'Khu C (Đóng gói)',                   th:'โซน C (แพ็คของ)' },
+  clean:    { label:'環境整理',               zone:'X', vi:'Dọn dẹp vệ sinh',                    th:'ทำความสะอาด' },
+  lunch:    { label:'午休',                   zone:'L', vi:'Nghỉ trưa',                           th:'พักเที่ยง' },
+};
+
+const DEFAULT_ROWS = [
+  { id:1,  timeStart:'08:00', timeEnd:'10:00', status:'A_prep',
+    zh:'折板、拆卸非鋁組件（鐵件, 塑膠件, 水泥）－ 全員',
+    vi:'Tháo tấm, tháo dỡ các vật thể không phải nhôm (sắt, nhựa, xi măng) - Tất cả',
+    th:'ถอดแผ่นแผงอลูมิเนียม, ถอดชิ้นส่วนที่ไม่ใช่อลูมิเนียม (เหล็ก, พลาสติก, ปูน) - ทุกคน' },
+  { id:2,  timeStart:'10:00', timeEnd:'10:45', status:'B_run',
+    zh:'投貨 (不分類)（阿榮） / 接貨 (需做鋁膜分類)（阿智、阿望）\n※ 留意有無非鋁物件殘留，如有殘留退回A區！',
+    vi:'Nạp hàng (Không phân loại) (Vinh) / Nhận hàng & Phân loại nhôm (Trí, Vọng)\n※ Lưu ý nếu có vật phi nhôm sót lại, phải trả về Khu A!',
+    th:'ใส่ของ (ไม่แยกประเภท) (วิน) / รับของ & แยกประเภทอลูมิเนียม (ธิ, ว่อง)\n※ ระวังชิ้นส่วนที่ไม่ใช่อลูมิเนียมตกค้าง ถ้ามีให้ส่งกลับไปโซน A!' },
+  { id:3,  timeStart:'10:45', timeEnd:'11:00', status:'B_pause',
+    zh:'A區作業（阿榮、阿望） / 接貨 (不分類)（阿智）',
+    vi:'Khu vực A (Vinh, Vọng) / Nhận hàng (Không phân loại) (Trí)',
+    th:'โซน A (วิน, ว่อง) / รับของ (ไม่แยกประเภท) (ธิ)' },
+  { id:4,  timeStart:'11:00', timeEnd:'11:45', status:'B_run',
+    zh:'同②：投貨 (不分類)（阿榮） / 接貨 (需做鋁膜分類)（阿智、阿望）\n※ 留意有無非鋁物件殘留，如有殘留退回A區！',
+    vi:'Như ②: Nạp hàng (Không phân loại) (Vinh) / Nhận hàng & Phân loại nhôm (Trí, Vọng)',
+    th:'เหมือน ②: ใส่ของ (ไม่แยกประเภท) (วิน) / รับของ & แยกประเภทอลูมิเนียม (ธิ, ว่อง)' },
+  { id:5,  timeStart:'11:45', timeEnd:'12:00', status:'B_pause',
+    zh:'接貨 (不分類)（阿智） / 折板、拆卸非鋁組件（鐵件、塑膠件、水泥）（阿榮、阿望）\n※ 請特別留意是否還有殘留非鋁物件！',
+    vi:'Nhận hàng (Không phân loại) (Trí) / Tháo tấm, tháo dỡ các vật thể không phải nhôm (Vinh, Vọng)\n※ Đặc biệt lưu ý xem còn sót vật phi nhôm không!',
+    th:'รับของ (ไม่แยกประเภท) (ธิ) / ถอดแผ่นแผงอลูมิเนียม (วิน, ว่อง)\n※ โปรดระวังเป็นพิเศษว่ามีชิ้นส่วนที่ไม่ใช่อลูมิเนียมตกค้างหรือไม่!' },
+  { id:'L', timeStart:'12:00', timeEnd:'13:00', status:'lunch',
+    zh:'用餐與休息', vi:'Ăn trưa & Nghỉ ngơi', th:'รับประทานอาหารและพักผ่อน' },
+  { id:6,  timeStart:'13:00', timeEnd:'13:45', status:'B_start',
+    zh:'投貨 (不分類)（阿榮） / 接貨 (需做鋁膜分類)（阿智、阿望）\n※ 留意有無非鋁物件殘留，如有殘留退回A區！',
+    vi:'Nạp hàng (Không phân loại) (Vinh) / Nhận hàng & Phân loại nhôm (Trí, Vọng)\n※ Lưu ý nếu có vật phi nhôm sót lại, phải trả về Khu A!',
+    th:'ใส่ของ (ไม่แยกประเภท) (วิน) / รับของ & แยกประเภทอลูมิเนียม (ธิ, ว่อง)\n※ ระวังชิ้นส่วนที่ไม่ใช่อลูมิเนียมตกค้าง ถ้ามีให้ส่งกลับไปโซน A!' },
+  { id:7,  timeStart:'13:45', timeEnd:'14:00', status:'B_stop',
+    zh:'投貨 (不分類)（阿智） / 接貨 (需做鋁膜分類)（阿榮、阿望）',
+    vi:'Nạp hàng (Không phân loại) (Trí) / Nhận hàng & Phân loại nhôm (Vinh, Vọng)',
+    th:'ใส่ของ (ไม่แยกประเภท) (ธิ) / รับของ & แยกประเภทอลูมิเนียม (วิน, ว่อง)' },
+  { id:8,  timeStart:'14:00', timeEnd:'14:45', status:'B_start',
+    zh:'同⑥：投貨 (不分類)（阿榮） / 接貨 (需做鋁膜分類)（阿智、阿望）',
+    vi:'Như ⑥: Nạp hàng (Không phân loại) (Vinh) / Nhận hàng & Phân loại nhôm (Trí, Vọng)',
+    th:'เหมือน ⑥: ใส่ของ (ไม่แยกประเภท) (วิน) / รับของ & แยกประเภทอลูมิเนียม (ธิ, ว่อง)' },
+  { id:9,  timeStart:'14:45', timeEnd:'15:00', status:'BC_trans',
+    zh:'接貨 (不分類)（阿智） / 包裝（阿榮、阿望）\n※ 包裝疊板時請特別留意是否還有殘留非鋁物件！',
+    vi:'Nhận hàng (Không phân loại) (Trí) / Đóng gói (Vinh, Vọng)\n※ Khi đóng gói và xếp chồng, đặc biệt lưu ý xem còn sót vật phi nhôm không!',
+    th:'รับของ (ไม่แยกประเภท) (ธิ) / แพ็คของ (วิน, ว่อง)\n※ ตอนแพ็คของและเรียงซ้อนกัน โปรดระวังเป็นพิเศษว่ามีชิ้นส่วนที่ไม่ใช่อลูมิเนียมตกค้างหรือไม่!' },
+  { id:10, timeStart:'15:00', timeEnd:'16:30', status:'A_prep',
+    zh:'同①：折板、拆卸非鋁組件（鐵件, 塑膠件, 水泥）－ 全員',
+    vi:'Như ①: Tháo tấm, tháo dỡ các vật thể không phải nhôm (sắt, nhựa, xi măng) - Tất cả',
+    th:'เหมือน ①: ถอดแผ่นแผงอลูมิเนียม, ถอดชิ้นส่วนที่ไม่ใช่อลูมิเนียม (เหล็ก, พลาสติก, ปูน) - ทุกคน' },
+  { id:11, timeStart:'16:30', timeEnd:'17:00', status:'clean',
+    zh:'工作區域環境清潔與收拾（全員）',
+    vi:'Dọn dẹp vệ sinh và thu dọn khu vực làm việc (Tất cả)',
+    th:'ทำความสะอาดและเก็บกวาดพื้นที่ทำงาน (ทุกคน)' },
+];
+
+const CIRCLE = ['①','②','③','④','⑤','⑥','⑦','⑧','⑨','⑩','⑪','⑫','⑬','⑭','⑮'];
+let rows = [];
+let nextId = 20;
+let openRowIdx = null;
+
+// ────────────────────────────────────────────────
+// INIT
+// ────────────────────────────────────────────────
+function loadState() {
+  const saved = localStorage.getItem('schedule_template_mobile');
+  if (saved) {
+    try {
+      const s = JSON.parse(saved);
+      // B5 fix: validate rows is non-empty array before using it
+      if (Array.isArray(s.rows) && s.rows.length > 0) {
+        rows = s.rows;
+        document.getElementById('meta-date').value     = s.date    || '2026-06-23';
+        document.getElementById('meta-hours').value    = s.hours   || '08:00 ~ 17:00';
+        document.getElementById('meta-staff').value    = s.staff   || '';
+        document.getElementById('meta-staff-vi').value = s.staffVi || '';
+        document.getElementById('meta-staff-th').value = s.staffTh || '';
+        nextId = Math.max(20, ...rows.map(r => typeof r.id==='number' ? r.id + 1 : 0));
+        return;
+      }
+    } catch(e) { console.warn('loadState: parse error', e); }
+  }
+  rows = JSON.parse(JSON.stringify(DEFAULT_ROWS));
+}
+
+function updateDateDisplay() {
+  const val = document.getElementById('meta-date').value;
+  if (!val) return;
+  const d = new Date(val + 'T00:00:00');
+  // B9 fix: guard against Invalid Date in edge-case timezones
+  if (isNaN(d.getTime())) return;
+  const days = ['日','一','二','三','四','五','六'];
+  document.getElementById('topbar-date-display').textContent =
+    `${val.replace(/-/g,'/')} (${days[d.getDay()]})`;
+}
+
+// ────────────────────────────────────────────────
+// RENDER
+// ────────────────────────────────────────────────
+function render() {
+  updateDateDisplay();
+  const container = document.getElementById('rows-container');
+  container.innerHTML = '';
+  let numIdx = 0;
+
+  rows.forEach((row, idx) => {
+    const isLunch = row.status === 'lunch';
+    const sinfo = getStatusInfo(row);
+    const circle = isLunch ? '☀' : (CIRCLE[numIdx] || String(numIdx+1));
+    if (!isLunch) numIdx++;
+
+    const isOpen = openRowIdx === idx;
+    const div = document.createElement('div');
+    div.className = 'row-card';
+    div.dataset.idx = idx;
+
+    // ── status options HTML ──
+    let selOpts = '';
+    for (const [k,v] of Object.entries(STATUS_OPTIONS)) {
+      selOpts += `<option value="${k}"${row.status===k?' selected':''}>${v.label}</option>`;
+    }
+
+    // auto-resize helper id
+    const taZh = `ta-zh-${idx}`, taVi = `ta-vi-${idx}`, taTh = `ta-th-${idx}`;
+
+    div.innerHTML = `
+      <div class="row-header" onclick="toggleRow(${idx})">
+        <div class="row-num${isLunch?' lunch-num':''}">${circle}</div>
+        <div class="row-summary">
+          <div class="row-time">${row.timeStart} ~ ${row.timeEnd}</div>
+          <span class="row-status-label${sinfo.zone==='CUSTOM'?'':' z-'+sinfo.zone}"
+            style="${sinfo.zone==='CUSTOM'?'background:'+sinfo.color+';':''}">${sinfo.label}</span>
+          <div class="row-preview">${(row.zh||'').split('\n')[0] || '—'}</div>
+        </div>
+        <div class="row-chevron${isOpen?' open':''}">›</div>
+      </div>
+      <div class="row-body${isOpen?' open':''}">
+        <div>
+          <div style="font-size:11px;font-weight:700;color:var(--text-2);margin-bottom:6px;">時間</div>
+          <div class="time-row">
+            <input type="time" value="${row.timeStart}" oninput="updateField(${idx},'timeStart',this.value);updateHeader(${idx})">
+            <span class="time-sep">~</span>
+            <input type="time" value="${row.timeEnd}" oninput="updateField(${idx},'timeEnd',this.value);updateHeader(${idx})">
+          </div>
+        </div>
+        <div>
+          <div style="font-size:11px;font-weight:700;color:var(--text-2);margin-bottom:6px;">狀態 / 區域</div>
+          <select class="status-select" onchange="onStatusChange(${idx},this.value)">
+            ${selOpts}
+            <option value="__custom__"${row.status==='__custom__'?' selected':''}>＋ 自訂狀態…</option>
+          </select>
+          <div id="custom-status-wrap-${idx}" style="margin-top:8px;display:${row.status==='__custom__'?'block':'none'}">
+            <div style="font-size:11px;font-weight:700;color:var(--text-2);margin-bottom:6px;">
+              狀態名稱
+              <span id="status-badge-${idx}" class="translated-badge" style="display:${(row.customStatusVi||row.customStatusTh)?'inline-flex':'none'}">✓ 已翻譯</span>
+            </div>
+            <div class="lang-group" style="margin-bottom:8px;">
+              <div class="lang-item">
+                <span class="lang-pill p-zh">中</span>
+                <input type="text"
+                  style="flex:1;padding:9px 11px;border-radius:8px;border:1.5px solid var(--border);font-size:14px;font-family:inherit;background:#fafbfc;"
+                  placeholder="自訂狀態名稱（中文）…"
+                  value="${esc(row.customStatus||'')}"
+                  oninput="updateField(${idx},'customStatus',this.value);updateHeader(${idx})">
+              </div>
+              <button class="translate-btn" id="stbtn-${idx}" onclick="translateStatusName(${idx})"
+                style="font-size:12px;padding:8px 12px;">
+                ✨ 翻譯狀態名稱
+              </button>
+              <div class="lang-item">
+                <span class="lang-pill p-vi">VN</span>
+                <input type="text" id="cs-vi-${idx}"
+                  style="flex:1;padding:9px 11px;border-radius:8px;border:1.5px solid var(--border);font-size:13px;font-family:inherit;background:#fafbfc;"
+                  placeholder="Tên trạng thái tiếng Việt…"
+                  value="${esc(row.customStatusVi||'')}"
+                  oninput="updateField(${idx},'customStatusVi',this.value)">
+              </div>
+              <div class="lang-item">
+                <span class="lang-pill p-th">TH</span>
+                <input type="text" id="cs-th-${idx}"
+                  style="flex:1;padding:9px 11px;border-radius:8px;border:1.5px solid var(--border);font-size:13px;font-family:inherit;background:#fafbfc;"
+                  placeholder="ชื่อสถานะภาษาไทย…"
+                  value="${esc(row.customStatusTh||'')}"
+                  oninput="updateField(${idx},'customStatusTh',this.value)">
+              </div>
+            </div>
+            <div style="font-size:11px;font-weight:700;color:var(--text-2);margin-bottom:6px;">標籤顏色</div>
+            <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+              ${['#2e7d32','#1565c0','#e65100','#c62828','#6a1b9a','#00838f','#f57f17','#37474f'].map(c=>`
+                <div onclick="setCustomColor(${idx},'${c}')"
+                  style="width:30px;height:30px;border-radius:50%;background:${c};cursor:pointer;border:3px solid ${(row.customColor||'#2e7d32')===c?'#fff':'transparent'};box-shadow:${(row.customColor||'#2e7d32')===c?'0 0 0 2px '+c:'none'};transition:all .15s;flex-shrink:0;"></div>
+              `).join('')}
+              <label style="display:flex;align-items:center;gap:5px;font-size:11px;color:var(--text-2);cursor:pointer;">
+                <input type="color" id="cpicker-${idx}"
+                  value="${row.customColor||'#2e7d32'}"
+                  onchange="setCustomColor(${idx},this.value)"
+                  style="width:30px;height:30px;border-radius:50%;border:none;padding:0;cursor:pointer;background:none;">
+                自訂
+              </label>
+              <div style="width:28px;height:28px;border-radius:8px;background:${row.customColor||'#2e7d32'};display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:#fff;flex-shrink:0;">預覽</div>
+            </div>
+            <button onclick="saveCustomToFavorites(${idx})"
+              style="margin-top:10px;width:100%;border:none;border-radius:8px;padding:10px;background:var(--blue-l);color:var(--blue-d);font-size:13px;font-weight:700;cursor:pointer;">
+              ⭐ 儲存為常用
+            </button>
+          </div>
+        </div>
+        <div>
+          <div style="font-size:11px;font-weight:700;color:var(--text-2);margin-bottom:6px;">
+            工作內容
+            <span id="badge-${idx}" class="translated-badge" style="display:none">✓ 已翻譯</span>
+          </div>
+          <div class="lang-group">
+            <div class="lang-item">
+              <span class="lang-pill p-zh">中</span>
+              <textarea id="${taZh}" rows="3" placeholder="中文工作內容…" oninput="updateField(${idx},'zh',this.value);autoResize(this);updatePreview(${idx})">${esc(row.zh)}</textarea>
+            </div>
+            <button class="translate-btn" id="tbtn-${idx}" onclick="translateRow(${idx})">
+              ✨ 自動翻譯成越文 &amp; 泰文
+            </button>
+            <div class="lang-item">
+              <span class="lang-pill p-vi">VN</span>
+              <textarea id="${taVi}" rows="3" placeholder="Nội dung tiếng Việt…" oninput="updateField(${idx},'vi',this.value);autoResize(this)">${esc(row.vi)}</textarea>
+            </div>
+            <div class="lang-item">
+              <span class="lang-pill p-th">TH</span>
+              <textarea id="${taTh}" rows="3" placeholder="เนื้อหาภาษาไทย…" oninput="updateField(${idx},'th',this.value);autoResize(this)">${esc(row.th)}</textarea>
+            </div>
+          </div>
+        </div>
+        <div class="row-actions">
+          <button class="ra-btn ra-up"   onclick="moveRow(${idx},-1)">▲ 上移</button>
+          <button class="ra-btn ra-down" onclick="moveRow(${idx},+1)">▼ 下移</button>
+          <button class="ra-btn ra-del"  onclick="deleteRow(${idx})">✕ 刪除</button>
+        </div>
+      </div>`;
+
+    container.appendChild(div);
+  });
+
+  // auto-resize all open textareas
+  document.querySelectorAll('.row-body.open textarea').forEach(autoResize);
+}
+
+function esc(s) {
+  if (s == null) return '';
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+function autoResize(el) {
+  el.style.height = 'auto';
+  el.style.height = el.scrollHeight + 'px';
+}
+
+// partial DOM updates (avoid full re-render on every keystroke)
+function updateField(idx, key, val) {
+  rows[idx][key] = val;
+}
+
+// ────────────────────────────────────────────────
+// SAVED CUSTOM STATUSES
+// ────────────────────────────────────────────────
+const SAVED_CUSTOM_KEY = 'schedule_saved_custom_statuses';
+
+function getSavedCustom() {
+  // B1 fix: validate structure, warn on corruption instead of silently returning []
+  try {
+    const raw = localStorage.getItem(SAVED_CUSTOM_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) throw new Error('not array');
+    return parsed.filter(x => x && typeof x.label === 'string' && typeof x.color === 'string');
+  } catch(e) {
+    console.warn('getSavedCustom: corrupted data, resetting.', e);
+    localStorage.removeItem(SAVED_CUSTOM_KEY);
+    return [];
+  }
+}
+function setSavedCustom(list) {
+  localStorage.setItem(SAVED_CUSTOM_KEY, JSON.stringify(list));
+}
+
+function saveCustomToFavorites(idx) {
+  const row = rows[idx];
+  if (!row || row.status !== '__custom__') return;
+  const label = (row.customStatus || '').trim();
+  if (!label) { toast('⚠️ 請先輸入狀態名稱'); return; }
+  const color = row.customColor || '#2e7d32';
+  const zh    = (row.zh || '').trim();
+  const vi    = (row.vi || '').trim();
+  const th    = (row.th || '').trim();
+
+  const list = getSavedCustom();
+  // B4 fix: duplicate check includes content (zh), not just label+color
+  const exists = list.some(x => x.label === label && x.color === color && x.zh === zh);
+  if (exists) { toast('⭐ 完全相同的項目已在常用清單中'); return; }
+
+  // B2 fix: assign stable numeric id to each item
+  list.push({ id: Date.now(), label, color, labelVi: (row.customStatusVi||'').trim(), labelTh: (row.customStatusTh||'').trim(), zh, vi, th });
+  setSavedCustom(list);
+  updateSavedCustomBtn();
+  toast('⭐ 已加入常用清單！');
+}
+
+function updateSavedCustomBtn() {
+  const list = getSavedCustom();
+  const btn  = document.getElementById('saved-custom-btn');
+  if (!btn) return;
+  btn.textContent = list.length > 0 ? `⭐ 常用自訂 (${list.length})` : '⭐ 常用自訂';
+}
+
+function openSavedCustomModal() {
+  renderSCList();
+  document.getElementById('sc-modal-bg').classList.add('open');
+}
+function closeSavedCustomModal() {
+  document.getElementById('sc-modal-bg').classList.remove('open');
+}
+function closeSCIfBg(e) {
+  if (e.target === document.getElementById('sc-modal-bg')) closeSavedCustomModal();
+}
+
+function renderSCList() {
+  const list = getSavedCustom();
+  const el   = document.getElementById('sc-modal-list');
+  if (!el) return;
+  if (list.length === 0) {
+    el.innerHTML = `<div class="sc-empty">尚無常用自訂狀態<br><span style="font-size:11px;">新增自訂列後按「⭐ 儲存為常用」</span></div>`;
+    return;
+  }
+  // B2 fix: embed stable item.id as string attribute, not array index
+  el.innerHTML = list.map(item => `
+    <div class="sc-item">
+      <div class="sc-item-dot" style="background:${esc(item.color)}"></div>
+      <div class="sc-item-info">
+        <div class="sc-item-label">${esc(item.label)}</div>
+        <div class="sc-item-sub">${esc(item.zh) || '（無工作內容）'}</div>
+      </div>
+      <button class="sc-item-add" onclick="addRowFromSaved('${item.id}')">＋ 新增</button>
+      <button class="sc-item-del" onclick="deleteSavedCustom('${item.id}')">🗑</button>
+    </div>
+  `).join('');
+}
+
+// B2 fix: look up by stable item.id, not array index
+function addRowFromSaved(itemId) {
+  const list = getSavedCustom();
+  const item = list.find(x => String(x.id) === String(itemId));
+  if (!item) { toast('⚠️ 找不到該常用項目'); return; }
+  const newRow = {
+    id: nextId++,
+    timeStart: '08:00', timeEnd: '09:00',
+    status: '__custom__',
+    customStatus:   item.label,
+    customStatusVi: item.labelVi || '',
+    customStatusTh: item.labelTh || '',
+    customColor:    item.color,
+    zh: item.zh || '',
+    vi: item.vi || '',
+    th: item.th || '',
+  };
+  rows.push(newRow);
+  openRowIdx = rows.length - 1;
+  closeSavedCustomModal();
+  render();
+  setTimeout(() => {
+    const cards = document.querySelectorAll('.row-card');
+    if (cards.length) cards[cards.length-1].scrollIntoView({behavior:'smooth'});
+  }, 80);
+  toast(`✅ 已新增「${item.label}」`);
+}
+
+// B2+B3 fix: use stable item.id; re-read storage after confirm() to avoid stale index
+function deleteSavedCustom(itemId) {
+  const list = getSavedCustom();
+  const item = list.find(x => String(x.id) === String(itemId));
+  if (!item) { renderSCList(); return; }
+  if (!confirm(`確定刪除常用「${item.label}」？`)) return;
+  // re-read after confirm in case storage changed during prompt
+  const freshList = getSavedCustom();
+  const newList = freshList.filter(x => String(x.id) !== String(itemId));
+  setSavedCustom(newList);
+  updateSavedCustomBtn();
+  renderSCList();
+  toast('🗑 已刪除');
+}
+
+function onStatusChange(idx, val) {
+  updateField(idx, 'status', val);
+  const wrap = document.getElementById(`custom-status-wrap-${idx}`);
+  if (wrap) wrap.style.display = val === '__custom__' ? 'block' : 'none';
+  renderRowHeader(idx);
+}
+
+function setCustomColor(idx, color) {
+  updateField(idx, 'customColor', color);
+  // update picker value
+  const picker = document.getElementById(`cpicker-${idx}`);
+  if (picker) picker.value = color;
+  // re-render this card to update swatch borders + preview
+  renderRowHeader(idx);
+}
+
+// get display info for a row (handles custom status)
+function getStatusInfo(row) {
+  if (row.status === '__custom__') {
+    const color = row.customColor || '#2e7d32';
+    return {
+      label: row.customStatus || '自訂狀態',
+      zone: 'CUSTOM',
+      color,
+      vi: row.customStatusVi || row.customStatus || '',
+      th: row.customStatusTh || row.customStatus || '',
+    };
+  }
+  const s = STATUS_OPTIONS[row.status] || STATUS_OPTIONS.clean;
+  const zoneColors = {A:'#2e7d32', B:'#1565c0', C:'#e65100', L:'#f57f17', X:'#607d8b'};
+  return { label: s.label, zone: s.zone, color: zoneColors[s.zone]||'#607d8b', vi: s.vi, th: s.th };
+}
+function updateHeader(idx) {
+  const card = document.querySelector(`.row-card[data-idx="${idx}"]`);
+  if (!card) return;
+  const row = rows[idx];
+  const sinfo = getStatusInfo(row);
+  const timeEl = card.querySelector('.row-time');
+  if (timeEl) timeEl.textContent = `${row.timeStart} ~ ${row.timeEnd}`;
+  const labelEl = card.querySelector('.row-status-label');
+  if (labelEl) {
+    labelEl.textContent = sinfo.label;
+    if (sinfo.zone === 'CUSTOM') {
+      labelEl.className = 'row-status-label';
+      labelEl.style.background = sinfo.color;
+    } else {
+      labelEl.className = `row-status-label z-${sinfo.zone}`;
+      labelEl.style.background = '';
+    }
+  }
+}
+function updatePreview(idx) {
+  const card = document.querySelector(`.row-card[data-idx="${idx}"]`);
+  if (!card) return;
+  const prev = card.querySelector('.row-preview');
+  if (prev) prev.textContent = (rows[idx].zh||'').split('\n')[0] || '—';
+}
+function renderRowHeader(idx) {
+  // status/color changed — just re-render; keep whatever row is currently open
+  render();
+}
+
+function toggleRow(idx) {
+  openRowIdx = openRowIdx === idx ? null : idx;
+  render();
+  if (openRowIdx === idx) {
+    setTimeout(() => {
+      const card = document.querySelector(`.row-card[data-idx="${idx}"]`);
+      if (card) card.scrollIntoView({behavior:'smooth', block:'nearest'});
+    }, 50);
+  }
+}
+
+// ────────────────────────────────────────────────
+// MUTATIONS
+// ────────────────────────────────────────────────
+function moveRow(idx, dir) {
+  const ni = idx + dir;
+  if (ni < 0 || ni >= rows.length) return;
+  [rows[idx], rows[ni]] = [rows[ni], rows[idx]];
+  if (openRowIdx === idx) openRowIdx = ni;
+  else if (openRowIdx === ni) openRowIdx = idx;
+  render();
+}
+function deleteRow(idx) {
+  rows.splice(idx, 1);
+  if (openRowIdx === idx) openRowIdx = null;
+  else if (openRowIdx > idx) openRowIdx--;
+  // guard: clamp to valid range after deletion
+  if (openRowIdx !== null && openRowIdx >= rows.length) openRowIdx = null;
+  render();
+}
+function addRow(zone) {
+  const statusMap = {A:'A_prep', B:'B_run', C:'C_pack', X:'clean'};
+  const newRow = { id:nextId++, timeStart:'08:00', timeEnd:'09:00',
+    status: statusMap[zone]||'clean', zh:'', vi:'', th:'' };
+  rows.push(newRow);
+  openRowIdx = rows.length - 1;
+  render();
+  setTimeout(() => {
+    const cards = document.querySelectorAll('.row-card');
+    if (cards.length) cards[cards.length-1].scrollIntoView({behavior:'smooth'});
+  }, 80);
+}
+
+// ────────────────────────────────────────────────
+// API KEY MANAGEMENT
+// ────────────────────────────────────────────────
+const KEY_STORE = 'anthropic_api_key';
+
+function getApiKey() {
+  return localStorage.getItem(KEY_STORE) || '';
+}
+function refreshKeyBanner() {
+  const key = getApiKey();
+  document.getElementById('key-banner-missing').style.display = key ? 'none' : 'flex';
+  document.getElementById('key-banner-set').style.display     = key ? 'flex' : 'none';
+}
+function openKeyModal() {
+  const key = getApiKey();
+  const input = document.getElementById('key-input');
+  input.value = key;
+  input.type  = 'password';
+  document.getElementById('key-eye-btn').textContent = '👁';
+  document.getElementById('key-del-btn').style.display = key ? 'block' : 'none';
+  document.getElementById('key-modal-bg').classList.add('open');
+}
+function closeKeyModal() {
+  document.getElementById('key-modal-bg').classList.remove('open');
+}
+function closeKeyIfBg(e) {
+  if (e.target === document.getElementById('key-modal-bg')) closeKeyModal();
+}
+function toggleKeyVisible() {
+  const inp = document.getElementById('key-input');
+  const btn = document.getElementById('key-eye-btn');
+  if (inp.type === 'password') { inp.type = 'text';     btn.textContent = '🙈'; }
+  else                         { inp.type = 'password'; btn.textContent = '👁'; }
+}
+function saveApiKey() {
+  const val = document.getElementById('key-input').value.trim();
+  if (!val.startsWith('sk-ant-')) {
+    toast('⚠️ Key 格式不對，應以 sk-ant- 開頭');
+    return;
+  }
+  localStorage.setItem(KEY_STORE, val);
+  refreshKeyBanner();
+  closeKeyModal();
+  toast('✅ API Key 已儲存！');
+}
+function deleteApiKey() {
+  if (!confirm('確定刪除已儲存的 API Key？')) return;
+  localStorage.removeItem(KEY_STORE);
+  refreshKeyBanner();
+  closeKeyModal();
+  toast('🗑 API Key 已刪除');
+}
+
+// ────────────────────────────────────────────────
+// AI TRANSLATE STAFF NAMES
+// ────────────────────────────────────────────────
+async function translateStaff() {
+  const zhStaff = document.getElementById('meta-staff').value.trim();
+  if (!zhStaff) { toast('⚠️ 請先輸入中文工作人員名稱'); return; }
+
+  const apiKey = getApiKey();
+  if (!apiKey) { toast('⚠️ 請先設定 API Key'); openKeyModal(); return; }
+
+  const btn = document.getElementById('staff-tbtn');
+  if (btn) { btn.disabled = true; btn.textContent = '⏳…'; }
+
+  try {
+    const response = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': apiKey,
+        'anthropic-version': '2023-06-01',
+        'anthropic-dangerous-direct-browser-access': 'true',
+      },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-6',
+        max_tokens: 300,
+        system: `你是工廠排程翻譯專家。將中文人名清單翻譯成越南文和泰文版本。
+人名對應：阿智→Trí/ธิ，阿榮→Vinh/วิน，阿望→Vọng/ว่อง，新人→nhân viên mới/พนักงานใหม่。
+其他名字請音譯或意譯，保持 | 分隔格式。
+只輸出 JSON，格式為 {"vi":"...","th":"..."}，不要其他文字。`,
+        messages: [{ role: 'user', content: `翻譯工作人員名單：${zhStaff}` }]
+      })
+    });
+
+    if (response.status === 401) throw new Error('invalid_key');
+    const data = await response.json();
+    if (data.error) throw new Error(data.error.message || 'api_error');
+
+    const raw    = data.content?.[0]?.text || '';
+    const clean  = raw.replace(/```json|```/g, '').trim();
+    const result = JSON.parse(clean);
+
+    if (result.vi && result.th) {
+      document.getElementById('meta-staff-vi').value = result.vi;
+      document.getElementById('meta-staff-th').value = result.th;
+      toast('✅ 工作人員名稱翻譯完成！');
+    } else {
+      throw new Error('unexpected response shape');
+    }
+  } catch(e) {
+    if (e.message === 'invalid_key') {
+      toast('❌ API Key 無效'); openKeyModal();
+    } else {
+      toast('❌ 翻譯失敗：' + e.message);
+    }
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = '✨ 翻譯'; }
+  }
+}
+
+// ────────────────────────────────────────────────
+// AI TRANSLATE STATUS NAME
+// ────────────────────────────────────────────────
+async function translateStatusName(idx) {
+  const row = rows[idx];
+  if (!row) return;
+  const zhName = (row.customStatus || '').trim();
+  if (!zhName) { toast('⚠️ 請先輸入中文狀態名稱'); return; }
+
+  const apiKey = getApiKey();
+  if (!apiKey) { toast('⚠️ 請先設定 API Key'); openKeyModal(); return; }
+
+  const btn   = document.getElementById(`stbtn-${idx}`);
+  const badge = document.getElementById(`status-badge-${idx}`);
+  if (!btn) return;
+
+  btn.disabled = true;
+  btn.classList.add('loading');
+  btn.textContent = '⏳ 翻譯中…';
+
+  try {
+    const response = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': apiKey,
+        'anthropic-version': '2023-06-01',
+        'anthropic-dangerous-direct-browser-access': 'true',
+      },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-6',
+        max_tokens: 300,
+        system: `你是工廠排程翻譯專家。將中文工作狀態名稱翻譯成越南文和泰文。
+只輸出 JSON，格式為 {"vi":"...","th":"..."}，不要其他文字。
+翻譯要簡潔，符合工廠/製造業用語。`,
+        messages: [{ role: 'user', content: `翻譯狀態名稱：${zhName}` }]
+      })
+    });
+
+    if (response.status === 401) throw new Error('invalid_key');
+    const data = await response.json();
+    if (data.error) throw new Error(data.error.message || 'api_error');
+
+    const raw    = data.content?.[0]?.text || '';
+    const clean  = raw.replace(/```json|```/g, '').trim();
+    const result = JSON.parse(clean);
+
+    if (result.vi && result.th) {
+      rows[idx].customStatusVi = result.vi;
+      rows[idx].customStatusTh = result.th;
+
+      const viEl = document.getElementById(`cs-vi-${idx}`);
+      const thEl = document.getElementById(`cs-th-${idx}`);
+      if (viEl) viEl.value = result.vi;
+      if (thEl) thEl.value = result.th;
+      if (badge) badge.style.display = 'inline-flex';
+      toast('✅ 狀態名稱翻譯完成！');
+    } else {
+      throw new Error('unexpected response shape');
+    }
+  } catch(e) {
+    console.error(e);
+    if (e.message === 'invalid_key') {
+      toast('❌ API Key 無效，請重新設定'); openKeyModal();
+    } else {
+      toast('❌ 翻譯失敗：' + e.message);
+    }
+  } finally {
+    btn.disabled = false;
+    btn.classList.remove('loading');
+    btn.textContent = '✨ 翻譯狀態名稱';
+  }
+}
+
+// ────────────────────────────────────────────────
+// AI TRANSLATE
+// ────────────────────────────────────────────────
+async function translateRow(idx) {
+  const rowId = rows[idx]?.id;  // snapshot the stable id
+  const zhText = rows[idx]?.zh || '';
+  if (!zhText.trim()) { toast('⚠️ 請先輸入中文內容'); return; }
+
+  const apiKey = getApiKey();
+  if (!apiKey) { toast('⚠️ 請先設定 API Key'); openKeyModal(); return; }
+
+  const btn   = document.getElementById(`tbtn-${idx}`);
+  const badge = document.getElementById(`badge-${idx}`);
+  const taVi  = document.getElementById(`ta-vi-${idx}`);
+  const taTh  = document.getElementById(`ta-th-${idx}`);
+  if (!btn) return;
+
+  btn.disabled = true;
+  btn.classList.add('loading');
+  btn.textContent = '⏳ 翻譯中…';
+  if (badge) badge.style.display = 'none';
+
+  try {
+    const response = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': apiKey,
+        'anthropic-version': '2023-06-01',
+        'anthropic-dangerous-direct-browser-access': 'true',
+      },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-6',
+        max_tokens: 1000,
+        system: `你是一位工廠作業排程翻譯專家，專精於中文→越南文、中文→泰文的工業作業指令翻譯。
+翻譯規則：
+1. 保持原意，用詞要符合工廠/製造業語境
+2. 人名（阿智、阿榮、阿望）翻譯為：阿智→Trí/ธิ，阿榮→Vinh/วิน，阿望→Vọng/ว่อง
+3. ※ 開頭的警示語要保留 ※ 符號
+4. 換行符號 \\n 要完整保留
+5. 只輸出 JSON，格式為 {"vi":"...","th":"..."}，不要任何其他文字`,
+        messages: [{
+          role: 'user',
+          content: `請將以下中文工廠作業指令翻譯成越南文和泰文：\n\n${zhText}`
+        }]
+      })
+    });
+
+    if (response.status === 401) throw new Error('invalid_key');
+    const data = await response.json();
+    if (data.error) throw new Error(data.error.message || 'api_error');
+
+    const raw    = data.content?.[0]?.text || '';
+    const clean  = raw.replace(/```json|```/g, '').trim();
+    const result = JSON.parse(clean);
+
+    if (result.vi && result.th) {
+      // find current index by stable id (may have changed during async wait)
+      const currentIdx = rows.findIndex(r => r.id === rowId);
+      if (currentIdx === -1) { toast('⚠️ 該列已被刪除，翻譯結果捨棄'); return; }
+
+      rows[currentIdx].vi = result.vi;
+      rows[currentIdx].th = result.th;
+
+      // update DOM — re-find elements by current index
+      const curVi = document.getElementById(`ta-vi-${currentIdx}`);
+      const curTh = document.getElementById(`ta-th-${currentIdx}`);
+      const curBadge = document.getElementById(`badge-${currentIdx}`);
+      if (curVi) { curVi.value = result.vi; autoResize(curVi); }
+      if (curTh) { curTh.value = result.th; autoResize(curTh); }
+      if (curBadge) curBadge.style.display = 'inline-flex';
+      toast('✅ 翻譯完成！');
+    } else {
+      throw new Error('unexpected response shape');
+    }
+  } catch(e) {
+    console.error(e);
+    if (e.message === 'invalid_key') {
+      toast('❌ API Key 無效，請重新設定');
+      openKeyModal();
+    } else {
+      toast('❌ 翻譯失敗：' + e.message);
+    }
+  } finally {
+    // re-find button by current index in case of re-render
+    const currentIdx = rows.findIndex(r => r.id === rowId);
+    const curBtn = currentIdx >= 0
+      ? document.getElementById(`tbtn-${currentIdx}`)
+      : btn;
+    if (curBtn) {
+      curBtn.disabled = false;
+      curBtn.classList.remove('loading');
+      curBtn.textContent = '✨ 重新翻譯';
+    }
+  }
+}
+
+// ────────────────────────────────────────────────
+// SAVE / RESET
+// ────────────────────────────────────────────────
+function saveTemplate() {
+  const state = {
+    date:     document.getElementById('meta-date').value,
+    hours:    document.getElementById('meta-hours').value,
+    staff:    document.getElementById('meta-staff').value,
+    staffVi:  document.getElementById('meta-staff-vi').value,
+    staffTh:  document.getElementById('meta-staff-th').value,
+    rows,
+  };
+  localStorage.setItem('schedule_template_mobile', JSON.stringify(state));
+  toast('✅ 模板已儲存！下次開啟自動載入');
+}
+function confirmReset() {
+  closeMenu();
+  if (!confirm('確定重置為預設模板？目前修改將遺失。')) return;
+  localStorage.removeItem('schedule_template_mobile');
+  rows = JSON.parse(JSON.stringify(DEFAULT_ROWS));
+  openRowIdx = null;
+  document.getElementById('meta-date').value     = '2026-06-23';
+  document.getElementById('meta-hours').value    = '08:00 ~ 17:00';
+  document.getElementById('meta-staff').value    = '阿智 (Trí / ธิ) | 阿榮 (Vinh / วิน) | 阿望 (Vọng / ว่อง)';
+  document.getElementById('meta-staff-vi').value = '';
+  document.getElementById('meta-staff-th').value = '';
+  render();
+  toast('已重置為預設模板');
+}
+
+// ────────────────────────────────────────────────
+// MODAL
+// ────────────────────────────────────────────────
+function showMenu()  { document.getElementById('modal-bg').classList.add('open'); }
+function closeMenu() { document.getElementById('modal-bg').classList.remove('open'); }
+function closeMenuIfBg(e) { if (e.target === document.getElementById('modal-bg')) closeMenu(); }
+
+// ────────────────────────────────────────────────
+// TOAST
+// ────────────────────────────────────────────────
+let _toastTimer = null;
+function toast(msg) {
+  const el = document.getElementById('toast');
+  // B7 fix: cancel previous timer before showing new toast
+  if (_toastTimer) { clearTimeout(_toastTimer); _toastTimer = null; }
+  el.textContent = msg;
+  el.classList.add('show');
+  _toastTimer = setTimeout(() => { el.classList.remove('show'); _toastTimer = null; }, 2800);
+}
+
+// ────────────────────────────────────────────────
+// PDF
+// ────────────────────────────────────────────────
+function generatePDF() {
+  const date  = document.getElementById('meta-date').value || new Date().toISOString().slice(0,10);
+  const hours = document.getElementById('meta-hours').value;
+  const staff = document.getElementById('meta-staff').value;
+  const d = new Date(date + 'T00:00:00');
+  const wd = ['(日)','(一)','(二)','(三)','(四)','(五)','(六)'];
+  const dayStr = isNaN(d.getDay()) ? '' : wd[d.getDay()];
+  const dateLabel = `${date.replace(/-/g,'/')} ${dayStr}`;
+
+  const lunchIdx = rows.findIndex(r => r.status === 'lunch');
+  const p1 = lunchIdx >= 0 ? rows.slice(0, lunchIdx+1) : rows.slice(0, Math.ceil(rows.length/2));
+  const p2 = lunchIdx >= 0 ? rows.slice(lunchIdx+1)    : rows.slice(Math.ceil(rows.length/2));
+
+  let ci = 0;
+  // B6 fix: beyond CIRCLE array, generate enclosed numbers or use safe fallback
+  function circle(row) {
+    if (row.status==='lunch') return '-';
+    const n = ci++;
+    return CIRCLE[n] || `(${n+1})`;
+  }
+
+  function escPDF(s) {
+    if (s == null) return '';
+    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  }
+
+  // B8 fix: escape content before injecting into PDF HTML
+  function lines(text, cls, alertCls) {
+    return (text||'').split('\n').map(l => {
+      const safe = escPDF(l);
+      return (l.startsWith('※')||l.startsWith('⚠'))
+        ? `<span class="${alertCls}">${safe}</span>`
+        : `<span class="${cls}">${safe}</span>`;
+    }).join('<br>');
+  }
+
+  function rowHTML(row) {
+    const isL  = row.status==='lunch';
+    const si   = getStatusInfo(row);
+    const zc   = si.color;
+    const c    = circle(row);
+    const lb   = isL ? 'background:#fffde7;' : '';
+    return `<tr style="${lb}">
+      <td style="text-align:center;font-weight:bold;font-size:12pt;${lb}">${c}</td>
+      <td class="time-col" style="${isL?'background:#fffde7;':''}color:${isL?'#f57f17':'#0d47a1'}">${row.timeStart} ~ ${row.timeEnd}</td>
+      <td class="sc" style="${lb}">
+        <div><span class="tz">中</span><span class="sz" style="color:${isL?'#e65100':zc}">${si.label}</span></div>
+        <div><span class="tv">VN</span><span class="sv"${isL?' style="color:#e65100"':''}>${si.vi}</span></div>
+        <div><span class="tt">TH</span><span class="st"${isL?' style="color:#e65100"':''}>${si.th}</span></div>
+      </td>
+      <td style="${lb}${isL?'color:#f57f17;font-style:italic;text-align:center;':''}">
+        ${isL ? `${row.zh} (${row.vi} / ${row.th})` : `
+        <div><span class="tz">中</span>${lines(row.zh,'cz','az')}</div>
+        <div><span class="tv">VN</span>${lines(row.vi,'cv','av')}</div>
+        <div><span class="tt">TH</span>${lines(row.th,'ct','at')}</div>`}
+      </td></tr>`;
+  }
+
+  ci = 0;
+  const r1 = p1.map(rowHTML).join('');
+  const r2 = p2.map(rowHTML).join('');
+
+  const staffZh = document.getElementById('meta-staff').value;
+  const staffVi = document.getElementById('meta-staff-vi').value;
+  const staffTh = document.getElementById('meta-staff-th').value;
+
+  const hdr = (pg) => `
+  <div class="hc">
+    <div>
+      <div class="h1t">每日工作排程表 (Lịch Trình Làm Việc Hàng Ngày / ตารางงานประจำวัน)</div>
+      <div class="sub">全日排程 (${hours}) ｜ 第${pg}頁 / Trang ${pg} / หน้า ${pg}</div>
+    </div>
+    <div class="db">日期: ${dateLabel}</div>
+  </div>
+  <div class="mi">
+    <div><strong>工作人員:</strong> ${staffZh.split('|').map(s=>`<span class="nh">${escPDF(s.trim())}</span>`).join(' | ')}</div>
+    ${staffVi ? `<div style="font-size:9pt;color:#4f4f4f;font-style:italic;margin-top:1px;"><strong>Nhân viên:</strong> ${escPDF(staffVi)}</div>` : ''}
+    ${staffTh ? `<div style="font-size:9pt;color:#5d4037;margin-top:1px;"><strong>พนักงาน:</strong> ${escPDF(staffTh)}</div>` : ''}
+  </div>`;
+
+  const th = `<thead><tr>
+    <th style="width:4%">編號</th><th style="width:13%">時間</th>
+    <th style="width:21%">狀態/項目</th><th>工作內容人員分配</th>
+  </tr></thead>`;
+
+  const html = `<!DOCTYPE html><html lang="zh-TW"><head><meta charset="UTF-8">
+<style>
+body{font-family:"Noto Sans TC","Segoe UI",sans-serif;margin:0;color:#2c3e50;line-height:1.2}
+*{box-sizing:border-box}
+.pg{width:297mm;height:210mm;padding:5mm 8mm;overflow:hidden;page-break-after:always;display:flex;flex-direction:column}
+.pg:last-child{page-break-after:avoid}
+.hc{border-left:5px solid #1565c0;padding-left:10px;margin-bottom:5px;display:flex;justify-content:space-between;align-items:flex-end;flex-shrink:0}
+.h1t{font-size:14pt;color:#0d47a1;font-weight:700}
+.sub{font-size:10pt;color:#555}
+.db{font-size:11pt;font-weight:700;border-bottom:2px solid #333;width:175px;text-align:center}
+.mi{font-size:10pt;background:#e3f2fd;padding:4px 10px;border-radius:4px;margin-bottom:5px;border:1px solid #bbdefb;flex-shrink:0}
+.nh{font-weight:700;color:#1565c0}
+table{width:100%;border-collapse:collapse;font-size:9.5pt;flex:1}
+th,td{border:1px solid #b0bec5;padding:3px 7px;vertical-align:middle}
+th{background:#1565c0;color:#fff;font-weight:700;font-size:10pt;text-align:center}
+.time-col{font-weight:700;color:#0d47a1;text-align:center;white-space:nowrap;background:#f7f9fa;font-size:10.5pt}
+.sc{vertical-align:middle}
+.tz,.tv,.tt{display:inline-block;font-size:7.5pt;font-weight:700;padding:0 2px;border-radius:2px;margin-right:4px;color:#fff;width:22px;text-align:center}
+.tz{background:#1565c0}.tv{background:#c62828}.tt{background:#ef6c00}
+.sz{font-weight:700;font-size:9.5pt}
+.sv{font-size:8.5pt;color:#4f4f4f;font-style:italic}
+.st{font-size:8.5pt;color:#5d4037}
+.cz{font-size:9.5pt;color:#212121}.cv{font-size:8.5pt;color:#4f4f4f;font-style:italic}.ct{font-size:8.5pt;color:#5d4037}
+.az{color:#c62828;font-weight:700}.av{color:#b71c1c;font-weight:700;font-style:italic}.at{color:#b71c1c;font-weight:700}
+.tlb{border:1px solid #b0bec5;background:#fafafa;border-radius:6px;padding:5px 8px;flex-shrink:0;margin-top:4px}
+.tlt{font-size:10pt;font-weight:700;color:#0d47a1;margin:0 0 4px;border-bottom:1px solid #b0bec5;padding-bottom:2px}
+.tlc{display:flex;gap:7px}
+.sc2{flex:1;background:#fff;border-radius:4px;border:1px solid #cfd8dc;padding:5px 8px}
+.sh{font-size:9.5pt;font-weight:700;color:#fff;padding:2px 7px;border-radius:3px;margin-bottom:4px}
+.sa{background:#2e7d32}.sb{background:#1565c0}.sc3{background:#e65100}
+.sd{font-size:8pt;line-height:1.3}
+.sd div{margin-bottom:3px}
+</style></head><body>
+<div class="pg">${hdr(1)}<table>${th}<tbody>${r1}</tbody></table></div>
+<div class="pg">${hdr(2)}<table>${th}<tbody>${r2}</tbody></table>
+<div class="tlb">
+  <div class="tlt">🛠️ 站點主要作業流程說明 (Quy trình trạm / ขั้นตอนการทำงานของแต่ละโซน)</div>
+  <div class="tlc">
+    <div class="sc2"><div class="sh sa">A區：整料區 (Sắp xếp / จัดเตรียม)</div>
+      <div class="sd">
+        <div><span class="tz">中</span><span class="cz">拆板、拆卸鐵件、塑膠件、水泥等非鋁組件。</span></div>
+        <div><span class="tv">VN</span><span class="cv">Tháo tấm, tháo dỡ các vật thể phi nhôm (sắt, nhựa, xi măng).</span></div>
+        <div><span class="tt">TH</span><span class="ct">ถอดแผ่น, ถอดชิ้นส่วนที่ไม่ใช่อลูมิเนียม (เหล็ก, พลาสติก, ปูน)</span></div>
+      </div>
+    </div>
+    <div class="sc2"><div class="sh sb">B區：噴砂機作業區 (Phun cát / พ่นทราย)</div>
+      <div class="sd">
+        <div><span class="tz">中</span><span class="cz">投貨、接貨、鋁膜分類。<span class="az"> ⚠️ 殘留非鋁件退回A區！</span></span></div>
+        <div><span class="tv">VN</span><span class="cv">Nạp hàng, nhận hàng và phân loại nhôm.<span class="av"> ⚠️ Trả về Khu A nếu còn sót!</span></span></div>
+        <div><span class="tt">TH</span><span class="ct">ใส่ของ, รับของ, แยกประเภทอลูมิเนียม<span class="at"> ⚠️ ส่งกลับโซน A ถ้ามีตกค้าง!</span></span></div>
+      </div>
+    </div>
+    <div class="sc2"><div class="sh sc3">C區：包裝區 (Đóng gói / แพ็คของ)</div>
+      <div class="sd">
+        <div><span class="tz">中</span><span class="cz">鋁膜疊板作業。<span class="az"> ⚠️ 疊板時需雙重非鋁件殘留檢查！</span></span></div>
+        <div><span class="tv">VN</span><span class="cv">Xếp chồng tấm nhôm.<span class="av"> ⚠️ Kiểm tra kỹ khi xếp chồng!</span></span></div>
+        <div><span class="tt">TH</span><span class="ct">งานจัดเรียงแผ่นอลูมิเนียม<span class="at"> ⚠️ ตรวจสอบชิ้นส่วนตกค้างทุกครั้ง!</span></span></div>
+      </div>
+    </div>
+  </div>
+</div>
+</div></body></html>`;
+
+  const blob = new Blob([html], {type:'text/html;charset=utf-8'});
+  const url = URL.createObjectURL(blob);
+  const win = window.open(url, '_blank');
+  if (!win) { toast('❌ 請允許彈出視窗後再試'); return; }
+  win.onload = () => { setTimeout(() => { win.print(); URL.revokeObjectURL(url); }, 600); };
+  toast('📄 已開啟列印視窗 → 選「另存為 PDF」');
+}
+
+// ────────────────────────────────────────────────
+// BOOT
+// ────────────────────────────────────────────────
+loadState();
+refreshKeyBanner();
+updateSavedCustomBtn();
+render();
+</script>
+</body>
+</html>
