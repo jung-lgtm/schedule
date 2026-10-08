@@ -1592,7 +1592,30 @@ td.no{text-align:center;font-weight:bold;font-size:calc(11pt*var(--s))}
     // 3) 內容真的太多：保持可讀字級，自動增加頁數
     if (!done) layout(0.88, false);
 
-    // 4) 仍有單列超高的頁面 → 只把那一頁整體縮小到剛好
+    // 4) 內容較少的頁面：先把字放大（最多 1.2 倍），剩下的空白讓表格列平均撐開填滿
+    var baseS = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--s')) || 1;
+    Array.prototype.forEach.call(root.querySelectorAll('.pg'), function(pg){
+      if (over(pg)) return;
+      var s = baseS, best = baseS;
+      while (s < 1.2){
+        s = Math.round((s + 0.02) * 100) / 100;
+        pg.style.setProperty('--s', s);
+        if (over(pg)) break;
+        best = s;
+      }
+      pg.style.setProperty('--s', best);
+      var inner = pg.querySelector('.inner'), tbl = pg.querySelector('table');
+      if (!tbl) return;
+      var cs = getComputedStyle(pg);
+      var avail = pg.clientHeight - parseFloat(cs.paddingTop) - parseFloat(cs.paddingBottom);
+      var spare = avail - inner.offsetHeight - 2;
+      if (spare > 0){
+        tbl.style.height = (tbl.offsetHeight + spare) + 'px';
+        if (over(pg)) tbl.style.height = '';
+      }
+    });
+
+    // 5) 仍有單列超高的頁面 → 只把那一頁整體縮小到剛好
     Array.prototype.forEach.call(root.querySelectorAll('.pg'), function(pg){
       if (!over(pg)) return;
       var inner = pg.querySelector('.inner');
@@ -1602,7 +1625,7 @@ td.no{text-align:center;font-weight:bold;font-size:calc(11pt*var(--s))}
       inner.style.transform = 'scale(' + k + ')';
     });
 
-    // 5) 頁碼
+    // 6) 頁碼
     var pages = root.querySelectorAll('.pg'), N = pages.length;
     Array.prototype.forEach.call(pages, function(pg, idx){
       Array.prototype.forEach.call(pg.querySelectorAll('.pno'), function(s){ s.textContent = ' ' + (idx+1) + '/' + N + ' '; });
